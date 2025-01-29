@@ -63,11 +63,11 @@ export async function getOpenInterest() {
     let openEthLongInterest = new BN(0);
     let openEthShortInterest = new BN(0);
 
-    console.log(openPositions[0].account.lockedAmount.toString());
-    console.log(openPositions[0].account.sizeUsd.toString());
-    console.log(openPositions[0].account.updateTime.toString());
-    console.log(openPositions[0].account.collateralCustody.toBase58());
-    console.log(openPositions[0].account.price.toString());
+    // console.log(openPositions[0].account.lockedAmount.toString());
+    // console.log(openPositions[0].account.sizeUsd.toString());
+    // console.log(openPositions[0].account.updateTime.toString());
+    // console.log(openPositions[0].account.collateralCustody.toBase58());
+    // console.log(openPositions[0].account.price.toString());
 
 
 
@@ -92,12 +92,12 @@ export async function getOpenInterest() {
       }
     }
 
-    console.log("Open sol long interest: ", BNToUSDRepresentation(openSolLongInterest, USDC_DECIMALS));
-    console.log("Open sol short interest: ", BNToUSDRepresentation(openSolShortInterest, USDC_DECIMALS));
-    console.log("Open btc long interest: ", BNToUSDRepresentation(openBtcLongInterest, USDC_DECIMALS));
-    console.log("Open btc short interest: ", BNToUSDRepresentation(openBtcShortInterest, USDC_DECIMALS));
-    console.log("Open eth long interest: ", BNToUSDRepresentation(openEthLongInterest, USDC_DECIMALS));
-    console.log("Open eth short interest: ", BNToUSDRepresentation(openEthShortInterest, USDC_DECIMALS));
+    // console.log("Open sol long interest: ", BNToUSDRepresentation(openSolLongInterest, USDC_DECIMALS));
+    // console.log("Open sol short interest: ", BNToUSDRepresentation(openSolShortInterest, USDC_DECIMALS));
+    // console.log("Open btc long interest: ", BNToUSDRepresentation(openBtcLongInterest, USDC_DECIMALS));
+    // console.log("Open btc short interest: ", BNToUSDRepresentation(openBtcShortInterest, USDC_DECIMALS));
+    // console.log("Open eth long interest: ", BNToUSDRepresentation(openEthLongInterest, USDC_DECIMALS));
+    // console.log("Open eth short interest: ", BNToUSDRepresentation(openEthShortInterest, USDC_DECIMALS));
 
     const data = {
         sol_long_interest: parseFloat(BNToUSDRepresentation(openSolLongInterest, USDC_DECIMALS)),
@@ -130,7 +130,7 @@ export async function getAndStoreOpenPositions() {
     const mostRecentRecord = result.rows[0];
 
     if (mostRecentRecord) {
-      console.log("Most recent record:", mostRecentRecord);
+    //   console.log("Most recent record:", mostRecentRecord);
       // Add type assertion for key
       for (const key of Object.keys(data) as Array<keyof typeof data>) {
         if (Math.abs(data[key] - mostRecentRecord[key]) / mostRecentRecord[key] > 0.1) {
