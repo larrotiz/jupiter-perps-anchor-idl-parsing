@@ -15,3 +15,11 @@ export function BNToUSDRepresentation(
     useGrouping: false,
   });
 }
+
+// Helper function to send a message to a Telegram channel
+export async function sendTelegramMessage(message: string) {
+  const telegramBotToken = process.env.TG_API_KEY;
+  const chatId = process.env.TG_EMERGENCY_CHANNEL_ID;
+  const url = `https://api.telegram.org/bot${telegramBotToken}/sendMessage?chat_id=${chatId}&text=${message}`;
+  await fetch(url);
+}

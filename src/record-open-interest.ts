@@ -2,7 +2,7 @@ import { type IdlAccounts } from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import { Perpetuals } from "./idl/jupiter-perpetuals-idl";
 import { CUSTODY_PUBKEY, JUPITER_PERPETUALS_PROGRAM, USDC_DECIMALS } from "./constants";
-import { BNToUSDRepresentation } from "./utils";
+import { BNToUSDRepresentation, sendTelegramMessage } from "./utils";
 import { Pool } from 'pg';
 import cron from 'node-cron';
 import dotenv from 'dotenv';
@@ -24,7 +24,7 @@ const pool = new Pool({
 // does not timeout before it returns the data.
 //
 // More info on the `Position` account here: https://station.jup.ag/guides/perpetual-exchange/onchain-accounts#position-account
-export async function getOpenPositions() {
+export async function getOpenInterest() {
   try {
     const gpaResult =
       await JUPITER_PERPETUALS_PROGRAM.provider.connection.getProgramAccounts(
@@ -62,6 +62,13 @@ export async function getOpenPositions() {
     let openBtcShortInterest = new BN(0);
     let openEthLongInterest = new BN(0);
     let openEthShortInterest = new BN(0);
+
+    console.log(openPositions[0].account.lockedAmount.toString());
+    console.log(openPositions[0].account.sizeUsd.toString());
+    console.log(openPositions[0].account.updateTime.toString());
+    console.log(openPositions[0].account.collateralCustody.toBase58());
+    console.log(openPositions[0].account.price.toString());
+
 
 
     for (const position of openPositions) {
@@ -110,18 +117,40 @@ export async function getOpenPositions() {
 // This function returns all open positions and stores them in the database
 export async function getAndStoreOpenPositions() {
   try {
-    const data = await getOpenPositions();
+    const data = await getOpenInterest();
     if (!data) {
       throw new Error('Failed to get open positions data');
     }
 
-    const query = `
+    // Get the most recent record
+    const getQuery = `
+      SELECT * FROM open_interest ORDER BY timestamp DESC LIMIT 1
+    `;
+    const result = await pool.query(getQuery);
+    const mostRecentRecord = result.rows[0];
+
+    if (mostRecentRecord) {
+      console.log("Most recent record:", mostRecentRecord);
+      // Add type assertion for key
+      for (const key of Object.keys(data) as Array<keyof typeof data>) {
+        if (Math.abs(data[key] - mostRecentRecord[key]) / mostRecentRecord[key] > 0.1) {
+          console.log(`Difference of ${key} is over 10%: ${data[key]} - ${mostRecentRecord[key]}`);
+          // Send a notification to the telegram channel
+          const telegramMessage = `Difference of ${key} is over 10%: ${data[key]} - ${mostRecentRecord[key]}`;
+          await sendTelegramMessage(telegramMessage);
+        }
+      }
+    } else {
+      console.log("No previous records found");
+    }
+
+    const insertQuery = `
       INSERT INTO open_interest 
       (sol_long_interest, sol_short_interest, btc_long_interest, btc_short_interest, eth_long_interest, eth_short_interest)
       VALUES ($1, $2, $3, $4, $5, $6)
     `;
 
-    await pool.query(query, Object.values(data));
+    await pool.query(insertQuery, Object.values(data));
     console.log("Data stored successfully:", data);
   } catch (error) {
     console.error("Failed to fetch and store open positions", error);
