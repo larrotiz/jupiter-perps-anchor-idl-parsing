@@ -130,15 +130,26 @@ export async function getAndStoreOpenPositions() {
     const mostRecentRecord = result.rows[0];
 
     if (mostRecentRecord) {
-    //   console.log("Most recent record:", mostRecentRecord);
       // Add type assertion for key
-      for (const key of Object.keys(data) as Array<keyof typeof data>) {
-        if (Math.abs(data[key] - mostRecentRecord[key]) / mostRecentRecord[key] > 0.1) {
-          console.log(`Difference of ${key} is over 10%: ${data[key]} - ${mostRecentRecord[key]}`);
-          // Send a notification to the telegram channel
-          const telegramMessage = `Difference of ${key} is over 10%: ${data[key]} - ${mostRecentRecord[key]}`;
-          await sendTelegramMessage(telegramMessage);
-        }
+      const sol_recent_total = mostRecentRecord.sol_long_interest - mostRecentRecord.sol_short_interest;
+      const btc_recent_total = mostRecentRecord.btc_long_interest - mostRecentRecord.btc_short_interest;
+      const eth_recent_total = mostRecentRecord.eth_long_interest - mostRecentRecord.eth_short_interest;
+      const sol_current_total = data.sol_long_interest - data.sol_short_interest;
+      const btc_current_total = data.btc_long_interest - data.btc_short_interest;
+      const eth_current_total = data.eth_long_interest - data.eth_short_interest;
+
+
+      const sol_diff = Math.abs(sol_current_total - sol_recent_total) / sol_recent_total;
+      const btc_diff = Math.abs(btc_current_total - btc_recent_total) / btc_recent_total;
+      const eth_diff = Math.abs(eth_current_total - eth_recent_total) / eth_recent_total;
+
+      if (sol_diff > 0.1 || btc_diff > 0.1 || eth_diff > 0.1) {
+        console.log(`Difference of oi is over 10%: SOL: ${sol_diff} - BTC: ${btc_diff} - ETH: ${eth_diff}`);
+        console.log(`Current OI: SOL: ${sol_current_total} - BTC: ${btc_current_total} - ETH: ${eth_current_total}`);
+        console.log(`Last OI: SOL: ${sol_recent_total} - BTC: ${btc_recent_total} - ETH: ${eth_recent_total}`);
+        // Send a notification to the telegram channel
+        const telegramMessage = `Difference of oi is over 10%: SOL: ${sol_diff} - BTC: ${btc_diff} - ETH: ${eth_diff}`;
+        await sendTelegramMessage(telegramMessage);
       }
     } else {
       console.log("No previous records found");
