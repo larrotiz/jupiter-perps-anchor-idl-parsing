@@ -18,12 +18,8 @@ const pool = new Pool({
   port: parseInt(process.env.DB_PORT || '5432'),
 });
 
-// This function returns all open positions (i.e. `Position` accounts with `sizeUsd > 0`)
-// Note that your RPC provider needs to enable `getProgramAccounts` for this to work. This
-// also returns *a lot* of data so you also need to ensure your `fetch` implementation
-// does not timeout before it returns the data.
-//
-// More info on the `Position` account here: https://station.jup.ag/guides/perpetual-exchange/onchain-accounts#position-account
+const OI_DIFF_THRESHOLD = 10_000_000;
+
 export async function getOpenInterest() {
   try {
     const gpaResult =
@@ -63,14 +59,6 @@ export async function getOpenInterest() {
     let openEthLongInterest = new BN(0);
     let openEthShortInterest = new BN(0);
 
-    // console.log(openPositions[0].account.lockedAmount.toString());
-    // console.log(openPositions[0].account.sizeUsd.toString());
-    // console.log(openPositions[0].account.updateTime.toString());
-    // console.log(openPositions[0].account.collateralCustody.toBase58());
-    // console.log(openPositions[0].account.price.toString());
-
-
-
     for (const position of openPositions) {
       if (position.account.custody.toBase58() === CUSTODY_PUBKEY.SOL && position.account.side.long) {
         openSolLongInterest = position.account.sizeUsd.add(openSolLongInterest);
@@ -91,13 +79,6 @@ export async function getOpenInterest() {
         openEthShortInterest = position.account.sizeUsd.add(openEthShortInterest);
       }
     }
-
-    // console.log("Open sol long interest: ", BNToUSDRepresentation(openSolLongInterest, USDC_DECIMALS));
-    // console.log("Open sol short interest: ", BNToUSDRepresentation(openSolShortInterest, USDC_DECIMALS));
-    // console.log("Open btc long interest: ", BNToUSDRepresentation(openBtcLongInterest, USDC_DECIMALS));
-    // console.log("Open btc short interest: ", BNToUSDRepresentation(openBtcShortInterest, USDC_DECIMALS));
-    // console.log("Open eth long interest: ", BNToUSDRepresentation(openEthLongInterest, USDC_DECIMALS));
-    // console.log("Open eth short interest: ", BNToUSDRepresentation(openEthShortInterest, USDC_DECIMALS));
 
     const data = {
         sol_long_interest: parseFloat(BNToUSDRepresentation(openSolLongInterest, USDC_DECIMALS)),
@@ -139,16 +120,19 @@ export async function getAndStoreOpenPositions() {
       const eth_current_total = data.eth_long_interest - data.eth_short_interest;
 
 
-      const sol_diff = Math.abs(sol_current_total - sol_recent_total) / sol_recent_total;
-      const btc_diff = Math.abs(btc_current_total - btc_recent_total) / btc_recent_total;
-      const eth_diff = Math.abs(eth_current_total - eth_recent_total) / eth_recent_total;
+      const sol_diff_ratio = Math.abs(sol_current_total - sol_recent_total) / sol_recent_total;
+      const btc_diff_ratio = Math.abs(btc_current_total - btc_recent_total) / btc_recent_total;
+      const eth_diff_ratio = Math.abs(eth_current_total - eth_recent_total) / eth_recent_total;
+      const sol_diff = Math.abs(sol_current_total - sol_recent_total);
+      const btc_diff = Math.abs(btc_current_total - btc_recent_total);
+      const eth_diff = Math.abs(eth_current_total - eth_recent_total);
 
-      if (sol_diff > 0.1 || btc_diff > 0.1 || eth_diff > 0.1) {
-        console.log(`Difference of oi is over 10%: SOL: ${sol_diff} - BTC: ${btc_diff} - ETH: ${eth_diff}`);
+      if ((sol_diff_ratio > 0.1 && sol_diff > OI_DIFF_THRESHOLD) || (btc_diff_ratio > 0.1 && btc_diff > OI_DIFF_THRESHOLD) || (eth_diff_ratio > 0.1 && eth_diff > OI_DIFF_THRESHOLD)) {
+        console.log(`Difference of oi is over 10%: SOL: ${sol_diff_ratio}, ${sol_diff} - BTC: ${btc_diff_ratio}, ${btc_diff} - ETH: ${eth_diff_ratio}, ${eth_diff}`);
         console.log(`Current OI: SOL: ${sol_current_total} - BTC: ${btc_current_total} - ETH: ${eth_current_total}`);
         console.log(`Last OI: SOL: ${sol_recent_total} - BTC: ${btc_recent_total} - ETH: ${eth_recent_total}`);
         // Send a notification to the telegram channel
-        const telegramMessage = `Difference of oi is over 10%: SOL: ${sol_diff} - BTC: ${btc_diff} - ETH: ${eth_diff}`;
+        const telegramMessage = `Difference of oi is over 10%: SOL: ${sol_diff_ratio}, ${sol_diff} - BTC: ${btc_diff_ratio}, ${btc_diff} - ETH: ${eth_diff_ratio}, ${eth_diff}`;
         await sendTelegramMessage(telegramMessage);
       }
     } else {
@@ -173,7 +157,7 @@ getAndStoreOpenPositions();
 
 // Schedule the function to run every 5 minutes
 cron.schedule('*/5 * * * *', async () => {
-  console.log('Running open interest tracker...');
+  console.log(`${new Date().toISOString()} - Running open interest tracker...`);
   await getAndStoreOpenPositions();
 });
 
